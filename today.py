@@ -7,9 +7,8 @@ import time
 import hashlib
 
 # Fine-grained personal access token with All Repositories access:
-# Account permissions: read:Followers, read:Starring, read:Watching
+# Account permissions: read:Email addresses, read:Follower, read:Git SSH keys, read:GPG keys, read:Profile information (REQUIRED for user query), read:Starring, read:Watching
 # Repository permissions: read:Commit statuses, read:Contents, read:Issues, read:Metadata, read:Pull Requests
-# Issues and pull requests permissions not needed at the moment, but may be used in the future
 HEADERS = {'authorization': 'token '+ os.environ['ACCESS_TOKEN']}
 USER_NAME = os.environ['USER_NAME'] # 'Andrew6rant'
 QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0, 'recursive_loc': 0, 'graph_commits': 0, 'loc_query': 0}
@@ -369,7 +368,12 @@ def user_getter(username):
     }'''
     variables = {'login': username}
     request = simple_request(user_getter.__name__, query, variables)
-    return {'id': request.json()['data']['user']['id']}, request.json()['data']['user']['createdAt']
+    data = request.json()
+    user = data['data']['user']
+    if user is None:
+        errors = data.get('errors', [])
+        raise Exception(f"GitHub API returned null for user '{username}'. Token may lack read permissions. Errors: {errors}")
+    return {'id': user['id']}, user['createdAt']
 
 def follower_getter(username):
     """
