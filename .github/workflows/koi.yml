@@ -1,0 +1,46 @@
+name: Koi
+
+on:
+  schedule:
+    # Just after midnight UTC daily, so the koi shows the day that just ended
+    - cron: "20 0 * * *"
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/koi.yml'
+
+permissions:
+  contents: write
+
+concurrency: koi
+
+jobs:
+  koi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Draw Git Koi
+        uses: yalongwastaken/git-koi@v1
+        with:
+          login: ${{ github.repository_owner }}
+          body: black
+          output-dir: koi
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit Koi if changed
+        shell: bash
+        run: |
+          git add koi/koi.gif koi/koi.png koi/preview.html
+          if git diff --cached --quiet; then
+            echo "The koi is unchanged; nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --quiet --message "koi: draw the day's koi"
+          git push --quiet
+
