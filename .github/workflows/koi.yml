@@ -10,6 +10,7 @@ on:
       - main
     paths:
       - '.github/workflows/koi.yml'
+      - 'expand_canvas.py'
 
 permissions:
   contents: write
@@ -23,13 +24,54 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Draw Git Koi
-        uses: yalongwastaken/git-koi@v1
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          login: ${{ github.repository_owner }}
-          body: black
-          output-dir: koi
-          token: ${{ secrets.GITHUB_TOKEN }}
+          python-version: '3.11'
+
+      - name: Install Pillow
+        run: pip install pillow
+
+      - name: Install git-koi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download v1.0.2 --repo yalongwastaken/git-koi --pattern "git-koi-1.0.2-x86_64-unknown-linux-musl.tar.gz"
+          tar -xzf git-koi-1.0.2-x86_64-unknown-linux-musl.tar.gz
+          chmod +x git-koi-1.0.2-x86_64-unknown-linux-musl/git-koi
+          echo "$PWD/git-koi-1.0.2-x86_64-unknown-linux-musl" >> "$GITHUB_PATH"
+
+      - name: Collect account snapshot
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git-koi collect "${{ github.repository_owner }}" --output snapshot.json
+
+      - name: Boost to Full-Grown Adult
+        run: |
+          python -c "
+          import json
+          with open('snapshot.json', 'r', encoding='utf-8') as f:
+              data = json.load(f)
+          days = data['contribution_history']['days']
+          active = [d for d in days if d['contribution_count'] > 0]
+          if active:
+              scale = 100000 / sum(d['contribution_count'] for d in active)
+              for d in active:
+                  d['contribution_count'] = int(d['contribution_count'] * scale) + 1
+          else:
+              days[-1]['contribution_count'] = 100000
+          with open('boosted_snapshot.json', 'w', encoding='utf-8') as f:
+              json.dump(data, f)
+          "
+
+      - name: Render Full-Grown Black Koi
+        run: |
+          git-koi render boosted_snapshot.json --output-dir koi --body black
+
+      - name: Expand Canvas to Widescreen Pond (768x512)
+        run: |
+          python expand_canvas.py
 
       - name: Commit Koi if changed
         shell: bash
@@ -41,6 +83,5 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit --quiet --message "koi: draw the day's koi"
+          git commit --quiet --message "koi: draw full-grown widescreen koi"
           git push --quiet
-
